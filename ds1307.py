@@ -3,10 +3,18 @@ import re
 import binascii
 import serial
 import time
+import sys
 
 # https://www.devdungeon.com/content/working-binary-data-python
 
-def parseHex(line):
+def parse_hex(line):
+    """
+    convert a line of text to binary object
+    >>> parseHex('-x45-x72-x63-x69-x65')
+
+    :param line: text formatted like -x45-x72-x63-x69-x65
+    :return:
+    """
     line = line.strip().upper()
     pattern = re.compile("-X[\dABCDEF][\dABCDEF]")
 
@@ -36,51 +44,108 @@ def parseHex(line):
     # print(list(bs))
     return binascii.unhexlify(to_unhexlify)
 
+def init_bp_sp(port_path):
+    # <class 'serial.serialposix.Serial'>
+    # "Serial<id=0x7ff9541ef208, open=True>(port='/dev/ttyUSB0', baudrate=115200, bytesize=8, parity='N', stopbits=1,
+    # sertimeout=None, xonxoff=False, rtscts=False, dsrdtr=False)"
+
+    return serial.Serial(port=port_path, baudrate=115200)
+
+    # print(ser.isOpen())
+    # print('Enter your commands below.\r\nInsert "exit" to leave the application.')
+
+
+
+
+def get_port():
+    """Detect Buspirate and return first detected port
+
+    Returns
+        -------
+    str
+    First valid portname (ie: ttyUSB0)
+    """
+
+
+    try:
+        import serial.tools.list_ports as list_ports
+    except ImportError:
+        raise ImportError('Pyserial version with serial.tools.list_port required')
+
+    import serial
+
+    # the API in version 2 and 3 is different
+    if serial.VERSION[0] == '2':
+        ports = list_ports.comports()
+        for port in ports:
+            if len(port) == 3 and '0403:6001' in port[2]:
+                return port[0]
+            if len(port) == 3 and 'VID_0403+PID_6001' in port[2]:
+                return port[0]
+    else:
+        ports = list_ports.comports()
+        for port in ports:
+            if hasattr(port, 'pid') and hasattr(port, 'vid'):
+                if port.vid == 1027 and port.pid == 24577:
+                    return port.name
+
+
+def write_bytes(ser, bytes, wait_secs):
+    """writes bytes then wait for a reply"""
+    ser.write(bytes)
+    out = b''
+    time.sleep(1)
+    while ser.inWaiting() > 0:
+        out += ser.read(1)
+
+    if out != b'':
+        # print(out.decode("utf-8"))
+        print(out)
+
+
+def eval_loop(ser):
+    while True:
+        foo = input(">> ")
+        # foo = bytes([ord(c) for c in foo])
+        foo = parse_hex(foo)
+        if foo == b'exit':
+            ser.close()
+            exit()
+        else:
+            # send the character to the device
+            # (note that I happend a \r\n carriage return and line feed to the characters - this is requested by my device)
+            # ser.write(foo + b'\r\n')
+            ser.write(foo)
+            out = b''
+            # let's wait one second before reading output (let's give device time to answer)
+            time.sleep(1)
+            while ser.inWaiting() > 0:
+                out += ser.read(1)
+
+            if out != b'':
+                # print(out.decode("utf-8"))
+                print(out)
+
+
+# def send_cmd(cmd):
+#     pass
+
+
+if __name__ == '__main__':
+    bp_port = get_port()
+    if bp_port is None:
+        sys.exit('err, cant find bus pirate')
+
+    sp = init_bp_sp('/dev/' + bp_port)
+
+    eval_loop(sp)
+
+    # return_bytes = write_bytes(sp, b'0x3F',1)
+    # print(return_bytes)
+
+
 
 # 0x3F is question mark in hex
-
-ser = serial.Serial(port='/dev/ttyUSB1', baudrate=115200)
-print(ser.name)
-
-print(ser.isOpen())
-print('Enter your commands below.\r\nInsert "exit" to leave the application.')
-
-
-def settup():
-    pass
-
-def repl_loop():
-    pass
-
-
-def send_cmd(cmd):
-    pass
-
-
-while True:
-    foo = input(">> ")
-    # foo = bytes([ord(c) for c in foo])
-    foo = parseHex(foo)
-    if foo == b'exit':
-        ser.close()
-        exit()
-    else:
-        # send the character to the device
-        # (note that I happend a \r\n carriage return and line feed to the characters - this is requested by my device)
-        # ser.write(foo + b'\r\n')
-        ser.write(foo)
-        out = b''
-        # let's wait one second before reading output (let's give device time to answer)
-        time.sleep(1)
-        while ser.inWaiting() > 0:
-            out += ser.read(1)
-
-        if out != b'':
-
-            # print(out.decode("utf-8"))
-            print(out)
-
-
 
 
 # i2c = I2C.I2C(portname='/dev/ttyUSB0')
