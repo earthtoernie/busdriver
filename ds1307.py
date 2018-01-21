@@ -4,241 +4,103 @@ import binascii
 import serial
 import time
 import sys
+import lib.bp_serial_utils
 
 # https://www.devdungeon.com/content/working-binary-data-python
 
-def parse_hex(line):
-    """
-    convert a line of text to binary object
-    >>> parseHex('-x45-x72-x63-x69-x65')
-
-    :param line: text formatted like -x45-x72-x63-x69-x65
-    :return:
-    """
-    line = line.strip().upper()
-    pattern = re.compile("-X[\dABCDEF][\dABCDEF]")
-
-    if(len(line) % 4 != 0):
-        raise ValueError("line must be like -x1F-x1F .. groups of 4 chars")
-
-    n = 4
-    strings = [line[i:i+n] for i in range(0, len(line), n)]
-    # print(strings)
-    # for int in range
-
-    to_unhexlify = ''
-
-    for str in strings:
-        if (pattern.match(str) == False) or (len(str) != 4):
-            raise ValueError("must be formatted like -x1F, case insensitive")
-        else:
-            to_unhexlify += str[2:]
-
-
-
-
-    print('our hex is:')
-    print(binascii.unhexlify(to_unhexlify))
-    # bs = bytes([ord(c) for c in word])
-    # print(bs)
-    # print(list(bs))
-    return binascii.unhexlify(to_unhexlify)
-
-def init_bp_sp(port_path):
-    # <class 'serial.serialposix.Serial'>
-    # "Serial<id=0x7ff9541ef208, open=True>(port='/dev/ttyUSB0', baudrate=115200, bytesize=8, parity='N', stopbits=1,
-    # sertimeout=None, xonxoff=False, rtscts=False, dsrdtr=False)"
-
-    return serial.Serial(port=port_path, baudrate=115200)
-
-    # print(ser.isOpen())
-    # print('Enter your commands below.\r\nInsert "exit" to leave the application.')
-
-
-
-
-def get_port():
-    """Detect Buspirate and return first detected port
-
-    Returns
-        -------
-    str
-    First valid portname (ie: ttyUSB0)
-    """
-
-
-    try:
-        import serial.tools.list_ports as list_ports
-    except ImportError:
-        raise ImportError('Pyserial version with serial.tools.list_port required')
-
-    import serial
-
-    # the API in version 2 and 3 is different
-    if serial.VERSION[0] == '2':
-        ports = list_ports.comports()
-        for port in ports:
-            if len(port) == 3 and '0403:6001' in port[2]:
-                return port[0]
-            if len(port) == 3 and 'VID_0403+PID_6001' in port[2]:
-                return port[0]
-    else:
-        ports = list_ports.comports()
-        for port in ports:
-            if hasattr(port, 'pid') and hasattr(port, 'vid'):
-                if port.vid == 1027 and port.pid == 24577:
-                    return port.name
-
-
-def write_bytes(ser, bytes, wait_secs=.1):
-    """writes bytes then wait for a reply"""
-    ser.write(bytes)
-    out = b''
-    time.sleep(wait_secs)
-    while ser.inWaiting() > 0:
-        out += ser.read(1)
-
-    if out != b'':
-        # print(out.decode("utf-8"))
-        return out
-    else:
-        return None
-
-
-
-
-def eval_loop(ser):
-    while True:
-        foo = input(">> ")
-        # foo = bytes([ord(c) for c in foo])
-        foo = parse_hex(foo)
-        if foo == b'exit':
-            ser.close()
-            exit()
-        else:
-            # send the character to the device
-            # (note that I happend a \r\n carriage return and line feed to the characters - this is requested by my device)
-            # ser.write(foo + b'\r\n')
-            ser.write(foo)
-            out = b''
-            # let's wait one second before reading output (let's give device time to answer)
-            time.sleep(1)
-            while ser.inWaiting() > 0:
-                out += ser.read(1)
-
-            if out != b'':
-                # print(out.decode("utf-8"))
-                print(out)
-
-def init_to_i2c():
-    bp_port = get_port()
-    if bp_port is None:
-        sys.exit('err, cant find bus pirate')
-
-    sp = init_bp_sp('/dev/' + bp_port)
-
-    # eval_loop(sp)
-
-    # return_bytes = write_bytes(sp, b'?\n\r',1)
-    # print(return_bytes)
-
-    max_tries = 25
-    for x in range(max_tries):
-        return_bytes = write_bytes(sp, b'\x00', .01)
-        # print('hhh ' + str(return_bytes))
-        if return_bytes == b'BBIO1':
-            inner_return_bytes = write_bytes(sp, b'\x0F\r\n', .1)
-            # print('jjj' + str(foo))
-            break
-    else:
-        sys.exit("too many attempts to send '0x00'")
-
-    ############
-    for x in range(max_tries):
-        return_bytes = write_bytes(sp, b'\x00', .01)
-        # print('hhh ' + str(return_bytes))
-        if return_bytes == b'BBIO1':
-            break
-    else:
-        sys.exit("too many attempts to send '0x00'")
-
-    print('ok good we now in BBIO1')
-
-
-
-    # print('**** resetting bus pirate, expecting "???"')
-    # return_bytes = write_bytes(sp, b'\x0F\r\n')
-    # print(return_bytes)
-    #
-    # print('**** entering raw bibnag, expecting "BBIOx"')
-    # return_bytes = write_bytes(sp, b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
-    # print(return_bytes)
-
-
-    print('**** entering I2C, expecting "I2Cx"')
-    return_bytes = write_bytes(sp, b'\x02')
-    print(return_bytes)
-
-    print('**** turning on the lights, check led and "0x01" ')
-    # 0100wxyz – Configure peripherals w=power, x=pullups, y=AUX, z=CS ---> 01001000
-
-    return_bytes = write_bytes(sp, b'\x48')
-    print(return_bytes)
-
-    return sp
-
-    # print('****sending CR-LF 10 times')
-    # return_bytes = write_bytes(sp, b'\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n#\r\n')
-    # print(return_bytes)
-
-
-# def send_cmd(cmd):
-#     pass
 
 
 if __name__ == '__main__':
 
+
     i2c_start = b'\x02'
-    i2c_stop = b'\x02'
+    i2c_stop = b'\x03'
 
     ds1207_write_addr = b'\xD0'
 
-    sp = init_to_i2c()
+    sp = lib.bp_serial_utils.init_to_i2c()
 
-    print('***** send start expect: 0x01')
-    ret = write_bytes(sp, i2c_start)
-    print(ret)
 
-    print('***** start bulk write cmd for 5 bytes, 0x15 expect: 0x01')
-    # 0001 xxxx – Bulk I2C write, send 1 - 16 bytes(0 = 1 byte!)
-    #send 5 bytes 0001 0101 -? 0x15
-    ret = write_bytes(sp, b'\x15')
-    print(ret)
     pause = 0
 
+    # print('***** send start expect: 0x01')
+    # ret = write_bytes(sp, i2c_start, pause)
+    # print(ret)
+    #
+    # print('***** start bulk write cmd for 6 bytes, 0x16 expect: 0x01')
+    # # 0001 xxxx – Bulk I2C write, send 1 - 16 bytes(0 = 1 byte!)
+    # #send 5 bytes 0001 0101 -? 0x15
+    # ret = write_bytes(sp, b'\x16', pause)
+    # print(ret)
+    #
+    #
+    #
+    # print('***** send write address, 0xD0 expect ack: 0x00')
+    # ret = write_bytes(sp, ds1207_write_addr, pause)
+    # print(ret)
+    #
+    # print('***** send write ram address, 0x08 expect ack: 0x00')
+    # ret = write_bytes(sp, b'\x08', pause)
+    # print(ret)
+    #
+    # print("***** send 'E' expect ack: 0x00")
+    # ret = write_bytes(sp, b'E', pause)
+    # print(ret)
+    #
+    # print("***** send 'r' expect ack: 0x00")
+    # ret = write_bytes(sp, b'r', pause)
+    # print(ret)
+    #
+    # print("***** send 'n' expect ack: 0x00")
+    # ret = write_bytes(sp, b'n', pause)
+    # print(ret)
+    #
+    # print("***** send 'i' expect ack: 0x00")
+    # ret = write_bytes(sp, b'i', pause)
+    # print(ret)
+    #
+    # print("***** send 'e' expect ack: 0x00", pause)
+    # ret = write_bytes(sp, b'e')
+    # print(ret)
+    #
+    # print('***** send stop expect: 0x01')
+    # ret = write_bytes(sp, i2c_stop, pause)
+    # print(ret)
 
-    print('***** send write address, 0xD0 expect ack: 0x00')
-    ret = write_bytes(sp, ds1207_write_addr, pause)
+    whole_thing = b'\x02\x16\xD0\x08Ernie\x03'
+    ret = lib.bp_serial_utils.write_bytes(sp, whole_thing, 0)
     print(ret)
 
-    print("***** send 'E' expect ack: 0x00")
-    ret = write_bytes(sp, b'E', pause)
+    ## write then read
+    # 0x08 command
+    # 0x00 write count Hi byte
+    # 0x01 write count Low byte
+    # 0x00 read count Hi byte
+    # 0x00 read count Low byte
+    # 0xD1 The actual byte stream to write, write address for ds1307
+    # 0x08 ram address
+
+    ### now write address then read
+    print("****** set the pointer, response is:")
+    # whole_thing = b'\x08\x00\x03\x00\x05\xD0\x08\xD1'
+    whole_thing = b'\x08\x00\x02\x00\x00\xD0\x08'
+
+    ret = lib.bp_serial_utils.write_bytes(sp, whole_thing, 0)
     print(ret)
 
-    print("***** send 'r' expect ack: 0x00")
-    ret = write_bytes(sp, b'r', pause)
-    print(ret)
 
-    print("***** send 'n' expect ack: 0x00")
-    ret = write_bytes(sp, b'n', pause)
-    print(ret)
+    # 0x08 command
+    # 0x00 write count Hi byte
+    # 0x01 write count Low byte
+    # 0x00 read count Hi byte
+    # 0x05 read count Low byte
+    # 0xD1 The actual byte stream to write, write address for ds1307
 
-    print("***** send 'i' expect ack: 0x00")
-    ret = write_bytes(sp, b'i', pause)
-    print(ret)
+    print("****** response is:")
+    # whole_thing = b'\x08\x00\x03\x00\x05\xD0\x08\xD1'
+    whole_thing = b'\x08\x00\x01\x00\x05\xD1'
 
-    print("***** send 'e' expect ack: 0x00", pause)
-    ret = write_bytes(sp, b'e')
+    ret = lib.bp_serial_utils.write_bytes(sp, whole_thing, 1)
     print(ret)
 
 
