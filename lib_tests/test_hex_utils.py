@@ -18,11 +18,11 @@ class TestHexUtils(unittest.TestCase):
         bytess_correct = [
             b'Ernie',
             b'ROB',
-            b'Bert',
+            b'Brt',
             b'' ]
         for str, bys in zip(strings_valid, bytess_correct):
             with self.subTest(str=str, bys=bys):
-                self.assertEquals(hu.string_to_bytes(str), bys)
+                self.assertEqual(hu.string_to_bytes(str), bys)
 
         invalid_args = [
             {'line': 'x52-x4F-x42', 'sep': '-x', 'case_sen_sep': False, 'case_sen_num': False}, # wrong sep one time

@@ -86,6 +86,7 @@ if __name__ == '__main__':
     whole_thing = b'\x08\x00\x02\x00\x00\xD0\x08'
 
     ret = lib.bp_serial_utils.write_bytes(sp, whole_thing, 0)
+    print('&&&&&&&&&&&&&')
     print(ret)
 
 
