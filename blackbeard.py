@@ -13,7 +13,7 @@ import re
 import sys
 import argparse
 
-import lib.bp_serial_utils
+import libs.bp_serial_utils
 
 # https://gist.github.com/martinth/ed991fb8cdcac3dfadf7
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
     if args.locate:
         try:
-            bp_port = lib.bp_serial_utils.get_port()
+            bp_port = libs.bp_serial_utils.get_port()
             print('Bus Pirate found on: {}'.format(bp_port))
         except FileNotFoundError:
             print(' no Bus Pirate found')
