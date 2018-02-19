@@ -67,10 +67,13 @@ if __name__ == '__main__':
     # sp = libs.bp_serial_utils.init_to_i2c()
     # read_write_string(sp)
 
-    sp = libs.bp_serial_utils.init_to_i2c()
+    # sp = libs.bp_serial_utils.init_to_i2c()
+    sp = libs.bp_serial_utils.get_port()
+    libs.bp_serial_utils.init_to_BBIO1()
+    libs.bp_serial_utils.go_to_i2c()
 
     # Mon Aug 4 13:30:45 2003
-    # the_time = datetime.datetime(2003, 8, 4, 13, 30, 45)
+    # # the_time = datetime.datetime(2003, 8, 4, 13, 30, 45)
     # the_time = datetime.datetime.now()
     # ret = write_time(sp, the_time)
 
@@ -79,6 +82,7 @@ if __name__ == '__main__':
 
     while True:
         read_statusdata, read_data = read_time(sp)
+        print(read_time(sp))
         time_stamp = libs.rtc_utils.gen_datetime([bytes([i]) for i in list(read_data)])
         # print(read_data)
         print(time_stamp)
