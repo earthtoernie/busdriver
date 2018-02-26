@@ -1,6 +1,7 @@
 import datetime
 from bp.bp_serial_utils import BusPirate
 import bp.i2c_utils
+import re
 
 class Rtc:
     ds1207_write_addr = b'\xD0'
@@ -24,8 +25,7 @@ class Rtc:
         hour10 = python_time.hour // 10
         addr2_hour = bytes([(hour10 * 16) | hour])
 
-        day = python_time.weekday()
-        print('day is...')
+        day = python_time.weekday() # monday indexed as 0
         addr3_day = bytes([day])
 
         date = python_time.day % 10
@@ -42,6 +42,40 @@ class Rtc:
 
         return [addr0_second, addr1_minute, addr2_hour, addr3_day, addr4_date, addr5_month, addr6_year]
     pass
+
+    @staticmethod
+    def bash_to_python_datetime(bashtime = 'Tue Feb 20 22:45:03 EST 2018'):
+        date_match = re.search(r'(\w{3})[ ](\w{3})[ ]{1,2}(\d{1,2})[ ](\d{2}):(\d{2}):(\d{2})[ ](\w{3})[ ](\w{4})', bashtime)
+        # 'Mon Feb 19 12:37:47 EST 2018'
+        # 'Tue Feb  6 12:37:47 EST 2018'
+        assert(len(date_match.groups())==8)
+        weekday_abv = date_match.group(1)
+        _dict_weekdays = {'MON': 0, 'TUE': 1, 'WED': 2, 'THU': 3, 'FRI': 4, 'SAT': 5, 'SUN': 6}
+
+        assert weekday_abv.upper() in _dict_weekdays.keys()
+        weekday = _dict_weekdays[weekday_abv.upper()]
+
+        _dict_months = {'JAN' : 1, 'FEB' : 2, 'MAR' : 3, 'APR' : 4, 'MAY' : 5,  'JUN' : 6,  'JUL' : 7, 'AUG' : 8,
+                        'SEP' : 9, 'OCT' : 10, 'NOV' : 11, 'DEC' : 12}
+        month_abv = date_match.group(2)
+        assert month_abv.upper() in _dict_months.keys()
+        month_num = _dict_months[month_abv.upper()]
+
+        day=int(date_match.group(3))
+        hour=int(date_match.group(4))
+
+
+        min=int(date_match.group(5))
+        sec=int(date_match.group(6))
+        zone=date_match.group(7)
+        year=int(date_match.group(8))
+
+        python_datetime = datetime.datetime(year=year, month=month_num, day=day, hour=hour, minute=min, second=sec)
+
+        if python_datetime.weekday() != weekday:
+            raise ValueError ('date you have is the wrong weekday')
+        # print(weekday_abv, ' ', month_abv, ' ', day, ' ', hour,':',min,':',sec,' ', zone, ' ', year)
+        return python_datetime
 
 
     @staticmethod
@@ -67,9 +101,11 @@ class Rtc:
 class RtcPirate(Rtc, BusPirate): # usin the concept of mixins here, stuff implemented here needs both rtc and bus pirate functinality
     ## todo, add good errors to tell user when methods are being called in an invalid order
     #obv we have to be initialized to i2c
-    def setTime(self, python_time):
-        time_regs = Rtc._gen_rtc_regs(python_time)
-        super(BusPirate, self).write_bytes()
+    # def setTime(self, python_time):
+    #     time_regs = Rtc._gen_rtc_regs(python_time)
+    #     print(time_regs)
+    #     self.write_time()
+    #     self.write_bytes(time_regs)
 
 
 
@@ -98,9 +134,10 @@ class RtcPirate(Rtc, BusPirate): # usin the concept of mixins here, stuff implem
         return ret
 
     def write_time(self, arg):
+        # takes in a python time
         # write data to a register (includes writing pointer to that register)
 
-        reg_load = b''.join(bp.rtc_utils.gen_rtc_regs(arg))
+        reg_load = b''.join(Rtc._gen_rtc_regs(arg))
         payload = bp.i2c_utils.gen_write_to_reg(Rtc.ds1207_write_addr, Rtc.ds1207_start_timedate_reg, reg_load)
         ret = self.write_bytes( payload, .1)
         # print('********** payload is: {}'.format(payload))

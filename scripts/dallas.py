@@ -3,6 +3,7 @@ import sys
 import time
 # import bp.bp_serial_utils as bp
 from bp.rtc_utils import RtcPirate
+import datetime
 
 def main():
     # https://stackoverflow.com/questions/24180527/argparse-required-arguments-listed-under-optional-arguments
@@ -26,23 +27,23 @@ def main():
 
     print(args)
 
+    try:
+        myPirate = RtcPirate()
+    except IOError:
+        print('can not find a bus pirate')
+        sys.exit(1)
+    print('**using', myPirate.myPirateId)
+    myPirate.initConnection()
+    myPirate.init_to_BBIO1()
+    myPirate.go_to_i2c()
+
     if args.action=='get':
-        try:
-            myPirate = RtcPirate()
-        except IOError:
-            print('can not find a bus pirate')
-            sys.exit(1)
-        print('**using', myPirate.myPirateId)
-        myPirate.initConnection()
-        myPirate.init_to_BBIO1()
-        myPirate.go_to_i2c()
+
+
         time = myPirate.readTime()
         # http://strftime.org/
         #time.tzname
         print('{:%a %b %-d %H:%M:%S {} %Y}'.format(time, 'XXX'))
-
-
-
 
         print('enjoy your *time* sir')
         sys.exit(0)
@@ -51,14 +52,6 @@ def main():
         print('waiting for seconds: {}'.format(args.interval))
         print('press Control-C to exit')
 
-        try:
-            myPirate = RtcPirate()
-        except IOError:
-            print('can not find a bus pirate')
-            sys.exit(1)
-        myPirate.initConnection()
-        myPirate.init_to_BBIO1()
-        myPirate.go_to_i2c()
         while(True):
             try:
                 # myPirate.initConnection()
@@ -69,10 +62,17 @@ def main():
             except KeyboardInterrupt:
                 sys.exit(0)
     if args.action=='set':
-        print('entered the *date* string: {}'.format(args.date))
-        print('*time* has been set')
+        # print('entered the *date* string: {}'.format(args.date))
+        # print('*time* has been set')
+        if args.date is None:
+            my_datetime = datetime.datetime.now()
+        else:
+            my_datetime = RtcPirate.bash_to_python_datetime(args.date)
+
+        myPirate.write_time(my_datetime)
+
         sys.exit(0)
 
 if __name__ == '__main__':
-    print('merp')
+    main()
 
