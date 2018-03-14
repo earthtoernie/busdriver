@@ -15,7 +15,7 @@ setup(
     author='ernie',
     packages=find_packages(),
     # scripts=['bin/hello.py',],
-    entry_points={ 'console_scripts': ['bp_dallas=scripts.dallas:main']},
+    entry_points={ 'console_scripts': ['bp_dallas=scripts.dallas:main', 'bp_stlcd=scripts.st:main']},
     url='na',
     license='na',
     description='Useful towel-related stuff.',
@@ -24,5 +24,3 @@ setup(
         "pyserial",
     ]
 )
-print('you go girl')
-print(find_packages())

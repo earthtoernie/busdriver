@@ -117,6 +117,7 @@ class BusPirate:
         else:
             return None
 
+
     def init_to_BBIO1(self):
         # eval_loop(sp)
 
@@ -172,6 +173,20 @@ class BusPirate:
         # print('****sending CR-LF 10 times')
         # return_bytes = write_bytes(sp, b'\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n#\r\n')
         # print(return_bytes)
+
+    def go_to_spi(self):
+        print('**** entering SPI, expecting "SPI1"')
+        return_bytes = self.write_bytes( b'\x01')
+        print(return_bytes)
+
+        print('**** turning on the lights, check led and "0x01" ')
+
+        # spi config 0b10001010
+        self.write_bytes(b'\x8a')
+
+        #0100wxyz - Configure peripherals -> 0b01001111
+        return_bytes = self.write_bytes(b'\x4f')
+
 
     def go_to_raw_wire(self):
         print('**** entering I2C, expecting "RAWx"')
