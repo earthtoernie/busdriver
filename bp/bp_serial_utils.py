@@ -181,11 +181,14 @@ class BusPirate:
 
         print('**** turning on the lights, check led and "0x01" ')
 
-        # spi config 0b10001010
-        self.write_bytes(b'\x8a')
+        # spi config 0b1000 1010
+        # self.write_bytes(b'\x8b')
+        self.write_bytes(b'\x89')
+
 
         #0100wxyz - Configure peripherals -> 0b01001111
         return_bytes = self.write_bytes(b'\x4f')
+
 
 
     def go_to_raw_wire(self):
